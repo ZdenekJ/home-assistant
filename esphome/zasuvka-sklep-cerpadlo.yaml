@@ -1,0 +1,69 @@
+esphome:
+  # name: sonoff-socket-1
+  name: zasucka-sklep-cerpadlo
+  friendly_name: "Zásuvka sklep čerpadlo"
+  platform: ESP8266
+  board: esp01_1m
+  board_flash_mode: dout
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+ota:
+  password: !secret esphome_ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Sonoff-Socket-1 Fallback Hotspot"
+    password: !secret esphome_wifi_fallback_password
+
+captive_portal:
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO0
+      mode: INPUT_PULLUP
+      inverted: True
+    name: "Sonoff S26 Tlačítko"
+    on_press:
+      - switch.toggle: relay
+  - platform: status
+    name: "Sonoff S26 Stav"
+
+switch:
+  - platform: gpio
+    name: "Sonoff S26 Přepínač"
+    pin: GPIO12
+    id: relay
+
+text_sensor:
+  - platform: version
+    name: "Sonoff S26 Verze"
+
+sensor:
+  - platform: wifi_signal
+    name: "Sonoff S26 WiFi signál"
+    update_interval: 60s
+  - platform: uptime
+    name: "Sonoff S26 Doba běhu"
+
+interval:
+  - interval: 20min
+    then:
+      - script.execute: docasne_zapnuti
+
+script:
+  - id: docasne_zapnuti
+    mode: single
+    then:
+      - switch.turn_on: relay
+      - delay: 90s
+      - switch.turn_off: relay

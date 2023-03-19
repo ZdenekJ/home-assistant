@@ -1,0 +1,11 @@
+substitutions:
+  name: zasuvka-mycka
+  friendly_name: "Myčka"
+packages:
+  athom.smart-plug: !include templates/athom-smart-plug-template-v2.yaml
+esphome:
+  name_add_mac_suffix: false
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password

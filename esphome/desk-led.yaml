@@ -1,0 +1,187 @@
+esphome:
+  name: desk-led
+  on_boot:
+    priority: -100
+    then:
+    - light.turn_on:
+        id: led_strip
+        effect: "BootUp"
+
+esp32:
+  board: nodemcu-32s
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+ota:
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Desk led"
+    password: "0TpIAXCe9bto"
+
+web_server:
+  port: 80
+
+captive_portal:
+
+light:
+  - platform: neopixelbus
+    name: "LED strip"
+    id: led_strip
+    type: GRB
+    variant: WS2812
+    pin: GPIO23
+    num_leds: 30
+    effects:
+      # Use default parameters:
+      - random:
+      # Customize parameters
+      - random:
+          name: "My Slow Random Effect"
+          transition_length: 30s
+          update_interval: 30s
+      - random:
+          name: "My Fast Random Effect"
+          transition_length: 4s
+          update_interval: 5s 
+      - pulse:
+      - pulse:
+          name: "Fast Pulse"
+          transition_length: 0.5s
+          update_interval: 0.5s
+      - pulse:
+          name: "Slow Pulse"
+          # transition_length: 1s      # defaults to 1s
+          update_interval: 2s  
+          name: "Test"
+          update_interval: 10ms
+          lambda: |-
+            ESP_LOGD("IT size", "%d", it.size());
+            static int position = 0;
+            static int last_update = 0;
+            static int iterationCount = 0;
+            static bool firstRun = true;
+            int update_speed = 40;
+
+            if(iterationCount > 2)
+            {
+              auto call = id(led_strip).turn_off();
+              call.perform();           
+              position = 0;
+              last_update = 0;
+              iterationCount = 0;
+              firstRun = true;   
+              return;
+            }
+            if(firstRun == true)
+            {
+              firstRun = false;
+              for (int i = 0; i < it.size(); i++) {
+                it[i] = esphome::Color::BLACK;
+              }
+            }
+            int first = position;
+            int second = position + 1;            
+            int third = position + 2;
+            if((last_update + update_speed) < millis()){
+              last_update = millis();             
+              it[position] = esphome::Color(255,0,0);
+              it[position - 1] = esphome::Color(0,255,0);
+              it[position - 2] = esphome::Color(0,0,255);
+              it[position - 3] = esphome::Color::BLACK;
+              
+              position = position + 1;
+              if(position == it.size())
+              {
+                position = 0;              
+                iterationCount = iterationCount + 1;
+              }
+            }
+      - addressable_lambda:
+          name: "BootUp"
+          update_interval: 10ms
+          lambda: |-
+            int overAllLength = 2000;
+            int updateSpeed = 40;
+            int numberOfFlashes = 2;
+
+            int targetRed = 55;
+            int targetGreen = 131;
+            int targetBlue = 200;
+
+            int overAllSteps = (int) (overAllLength / updateSpeed);
+
+            static int step = 0;
+            static int lastUpdate = 0;
+            static bool firstRun = true;      
+            static bool lightingUp = true;
+            static int  phase = 1;
+            int maxPhases = 2 * numberOfFlashes;
+            int stepsInPhase = overAllSteps / maxPhases;
+            
+            if(firstRun == true)
+            {
+              firstRun = false;
+              it.all() = Color::BLACK;
+            }          
+
+            if(step > overAllSteps)
+            {
+              auto call = id(led_strip).turn_off();
+              call.perform();           
+              
+              lastUpdate = 0;
+              step = 0;
+              phase = 1;
+              lightingUp = true;
+              firstRun = true;  
+              return;
+            }
+
+            if((lastUpdate + updateSpeed) < millis()){
+              lastUpdate = millis(); 
+              int stepInPhase = 0;
+              if(lightingUp)
+              {
+                stepInPhase = step - (stepsInPhase * (phase - 1));
+              }
+              else
+              {
+                stepInPhase =  stepsInPhase - step + (stepsInPhase * (phase - 1));
+              }
+                     
+              float stepRatio = (float) stepInPhase / stepsInPhase;
+              //float ratio = pow(2, 10 * stepRatio - 10); // easiIn
+              //float ratio = 1 - pow(1 - stepRatio, 3); // easeOutCubic
+              float ratio = -(cos(PI * stepRatio) - 1) / 2; // easeInOutSine
+              
+              int red = (int) (targetRed * ratio);
+              int green = (int) (targetGreen * ratio);
+              int blue = (int) (targetBlue * ratio);
+
+              it.all() = Color(red, green, blue);                        
+
+              step = step + 1;
+              if(step % stepsInPhase == 0)
+              {
+                phase = phase + 1;
+                if(phase % 2 == 0)
+                {
+                  lightingUp = false;
+                }
+                else
+                {
+                  lightingUp = true;
+                }
+              }
+            }                                 
